@@ -71,6 +71,7 @@ func deleteEmptyDirectories(filePath string) error {
 		}
 
 		if info.IsDir() {
+			// DO NOT delete the root temp directory itself!
 			if path == filePath {
 				return nil
 			}
@@ -226,6 +227,11 @@ func verifyMedia(log logger, conf *config.ServerConfig, file *fileInfo, checkDup
 }
 
 func cleanDirectory(dir string) error {
+	// Ensure directory exists first if it was removed or hasn't been created on tmpfs
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("ensure temp dir exists: %w", err)
+	}
+
 	dirRead, err := os.Open(dir)
 	if err != nil {
 		return fmt.Errorf("open directory: %w", err)
