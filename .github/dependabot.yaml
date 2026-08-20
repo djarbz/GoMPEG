@@ -1,0 +1,49 @@
+version: 2
+updates:
+  # Maintain pre-commit hooks
+  - package-ecosystem: "pre-commit"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Chicago"
+    labels:
+      - "dependencies"
+      - "linters"
+    commit-message:
+      prefix: "chore(pre-commit)"
+
+  # Maintain GitHub Actions workflows (Grouped)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      github-actions-dependencies:
+        patterns:
+          - "*" # Groups all action updates into one PR
+    labels:
+      - "dependencies"
+      - "ci"
+
+  # Maintain Docker base images
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "docker"
+
+  # Maintain GoLang dependencies
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "golang"

@@ -8,10 +8,10 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/djarbz/GoMPEG/application"
+	"github.com/djarbz/GoMPEG/internal"
 	"github.com/djarbz/GoMPEG/cmd/flag"
 	"github.com/djarbz/GoMPEG/config"
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 func app(cmd *cobra.Command, _ []string) error {
@@ -59,5 +59,5 @@ func app(cmd *cobra.Command, _ []string) error {
 		logger.With(slog.Any("Config", appConfig)).Info("Application configured!")
 	}
 
-	return application.Process(logger, appConfig)
+	return internal.Process(logger, appConfig)
 }

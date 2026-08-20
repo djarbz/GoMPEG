@@ -3,15 +3,16 @@ package cmd
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
-	"github.com/spf13/cobra"
 	"github.com/djarbz/GoMPEG/cmd/flag"
+	"github.com/mattn/go-isatty"
+	"github.com/spf13/cobra"
 	"gitlab.com/djarbz/golang/slogmw"
-	"golang.org/x/exp/slog"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -19,7 +20,6 @@ func levelMatcher(level string) (slog.Level, error) {
 	if levelInt, err := strconv.Atoi(level); err == nil {
 		return slog.Level(levelInt), nil
 	}
-
 	switch strings.ToUpper(level) {
 	case "TRACE":
 		return slog.Level(-8), nil
@@ -36,51 +36,43 @@ func levelMatcher(level string) (slog.Level, error) {
 	case "EMERG":
 		return slog.Level(12), nil
 	}
-
 	return slog.LevelInfo, fmt.Errorf("unknown Log Level: %s", level)
 }
 
 func NewMultiSlogger(cmd *cobra.Command, appName string) (*slog.Logger, error) {
-	flagLevel, err := cmd.Flags().GetString(flag.LogLevel)
-	if err != nil {
-		return nil, fmt.Errorf(flag.ErrorFormat, flag.LogLevel, err)
-	}
-	level, err := levelMatcher(flagLevel)
-	if err != nil {
-		return nil, fmt.Errorf("invalid log level: %w", err)
-	}
+	flagLevel, _ := cmd.Flags().GetString(flag.LogLevel)
+	level, _ := levelMatcher(flagLevel)
 
-	debug, err := cmd.Flags().GetBool(flag.Debug)
-	if err != nil {
-		return nil, fmt.Errorf(flag.ErrorFormat, flag.Debug, err)
-	}
+	debug, _ := cmd.Flags().GetBool(flag.Debug)
 	if debug {
 		level = slog.LevelDebug
 	}
 
-	addSource, err := cmd.Flags().GetBool(flag.LogSource)
-	if err != nil {
-		return nil, fmt.Errorf(flag.ErrorFormat, flag.LogSource, err)
-	}
+	addSource, _ := cmd.Flags().GetBool(flag.LogSource)
+	fullSource, _ := cmd.Flags().GetBool(flag.LogFullSource)
 
-	fullSource, err := cmd.Flags().GetBool(flag.LogFullSource)
-	if err != nil {
-		return nil, fmt.Errorf(flag.ErrorFormat, flag.LogFullSource, err)
+	// Auto-detect Journald
+	disableTime, _ := cmd.Flags().GetBool(flag.LogTimestampDisable)
+	if os.Getenv("JOURNAL_STREAM") != "" {
+		disableTime = true
+	}
+	// Auto-detect: If stdout is NOT a terminal, a logging driver (like Podman/journald) is capturing it.
+	if !isatty.IsTerminal(os.Stdout.Fd()) && !isatty.IsCygwinTerminal(os.Stdout.Fd()) {
+		disableTime = true
 	}
 
 	handler := slog.HandlerOptions{
 		AddSource: addSource,
 		Level:     level,
-	}
-
-	if !fullSource {
-		handler.ReplaceAttr = func(groups []string, a slog.Attr) slog.Attr {
-			// Remove the directory from the source's filename.
-			if a.Key == slog.SourceKey {
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if disableTime && a.Key == slog.TimeKey {
+				return slog.Attr{} // Drop timestamp
+			}
+			if !fullSource && a.Key == slog.SourceKey {
 				a.Value = slog.StringValue(filepath.Base(a.Value.String()))
 			}
 			return a
-		}
+		},
 	}
 
 	logWriter, err := slogSetupMultiWriter(cmd)
@@ -89,11 +81,10 @@ func NewMultiSlogger(cmd *cobra.Command, appName string) (*slog.Logger, error) {
 	}
 
 	return slog.New(
-		handler.NewJSONHandler(logWriter).
-			WithAttrs([]slog.Attr{
-				slog.String("name", appName),
-			}),
-	), nil
+    slog.NewJSONHandler(logWriter, &handler).WithAttrs([]slog.Attr{
+        slog.String("name", appName),
+    }),
+), nil
 }
 
 func slogSetupMultiWriter(cmd *cobra.Command) (io.Writer, error) {

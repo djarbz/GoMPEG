@@ -1,0 +1,19 @@
+name: Prune Old Images
+
+on:
+  schedule:
+    - cron: '0 0 * * 0' # Runs every Sunday at midnight
+
+jobs:
+  clean-ghcr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete old images
+        uses: snok/container-retention-policy@v3
+        with:
+          image-names: gompeg
+          cut-off: 30 days ago
+          keep-at-least: 3
+          account-type: personal
+          # account-type: org
+          token: ${{ secrets.GITHUB_TOKEN }}

@@ -18,6 +18,7 @@ const (
 	LogFullSource       = "log-full-source"
 	LogConsoleDisable   = "log-console-disable"
 	LogConsoleFormat    = "log-console-format"
+	LogTimestampDisable = "log-timestamp-disable"
 	LogFileEnable       = "log-file-enable"
 	LogFilePath         = "log-file-path"
 	LogFileFormat       = "log-file-format"

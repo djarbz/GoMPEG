@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"golang.org/x/exp/slog"
+	"log/slog"
 	_ "modernc.org/sqlite"
 )
 
