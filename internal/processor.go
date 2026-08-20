@@ -42,12 +42,14 @@ func watchAndProcess(log *slog.Logger, conf *config.ServerConfig, watchDir strin
 	defer func() { _ = watcher.Close() }()
 
 	if err := watcher.Add(watchDir); err != nil {
-		return fmt.Errorf("watch directory: %w", err)
+		return fmt.Errorf("watch directory [%s]: %w", watchDir, err)
 	}
 
-	ticker := time.NewTicker(5 * time.Minute)
+	// Fallback ticker: Check every 15 seconds to handle container mount boundaries
+	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
 
+	log.Info("Starting initial directory sweep...", slog.String("dir", watchDir))
 	processSweep(log, conf, watchDir, processor)
 
 	for {
