@@ -1,0 +1,28 @@
+package flag
+
+const (
+	ErrorFormat         = "could not read flag --%s Error: %w"
+	Debug               = "debug"
+	AppName             = "appname"
+	VideoWatchDir       = "video-watch"
+	VideoOutputDir      = "video-out"
+	VideoSkipDir        = "video-skip"
+	VideoFailedDir      = "video-failed"
+	VideoCompleteDir    = "video-complete"
+	AudioWatchDir       = "audio-watch"
+	AudioOutputDir      = "audio-out"
+	TempDir             = "temp-dir"
+	DBFile              = "db-file"
+	LogLevel            = "log-level"
+	LogSource           = "log-source"
+	LogFullSource       = "log-full-source"
+	LogConsoleDisable   = "log-console-disable"
+	LogConsoleFormat    = "log-console-format"
+	LogFileEnable       = "log-file-enable"
+	LogFilePath         = "log-file-path"
+	LogFileFormat       = "log-file-format"
+	LogFileRotateEnable = "log-file-rotate-enable"
+	LogFileRotateSize   = "log-file-rotate-size"
+	LogFileRotateKeep   = "log-file-rotate-keep"
+	LogFileRotateAge    = "log-file-rotate-age"
+)

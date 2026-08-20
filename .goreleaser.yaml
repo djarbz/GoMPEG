@@ -1,0 +1,201 @@
+# .goreleaser.yaml
+# https://goreleaser.com
+# https://hackernoon.com/how-to-use-goreleaser-to-automate-golang-build-releases
+
+#project_name: gompeg
+gitlab_urls:
+  # https://goreleaser.com/ci/gitlab/#:~:text=branches%20and%20tags.-,Warning,-If%20you%20use
+  use_package_registry: true
+builds:
+  # https://goreleaser.com/customization/build/
+  - binary: gompeg
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+      - freebsd
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - "6"
+      - "7"
+    ignore:
+      - goos: windows
+        goarch: arm
+      - goos: windows
+        goarch: arm64
+    # Set the modified timestamp on the output binary, typically
+    # you would do this to ensure a build was reproducible. Pass
+    # empty string to skip modifying the output.
+    # Default is empty string.
+    mod_timestamp: "{{ .CommitTimestamp }}"
+before:
+  # https://goreleaser.com/customization/hooks/
+  hooks:
+    # tidy up
+    - go mod tidy
+    - go generate ./...
+archives:
+  - format_overrides:
+      - goos: windows
+        format: zip
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+      {{- if .Mips }}_{{ .Mips }}{{ end }}
+    #  - replacements:
+    #      linux: Linux
+    #      darwin: Darwin
+    #      windows: Windows
+    #      freebsd: FreeBSD
+    #      386: i386
+    #      amd64: x86_64
+dockers:
+  # https://goreleaser.com/customization/docker/
+  # Linux/amd64
+  - use: buildx
+    goos: linux
+    goarch: amd64
+    image_templates:
+      - "registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Version }}-amd64"
+      - "registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}-amd64"
+      - "registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Major }}-amd64"
+    build_flag_templates:
+      - --platform=linux/amd64
+      - --label=org.opencontainers.image.title={{ .ProjectName }}
+      - --label=org.opencontainers.image.description={{ .ProjectName }}
+      - --label=org.opencontainers.image.url=https://gitlab.com/djarbz/golang/{{ .ProjectName }}
+      - --label=org.opencontainers.image.source=https://gitlab.com/djarbz/golang/{{ .ProjectName }}
+      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.created={{ time "2006-01-02T15:04:05Z07:00" }}
+      - --label=org.opencontainers.image.revision={{ .FullCommit }}
+      - --label=org.opencontainers.image.licenses=MIT
+
+  # Linux/arm64v8
+  - use: buildx
+    goos: linux
+    goarch: arm64
+    image_templates:
+      - "registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Version }}-arm64v8"
+      - "registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}-arm64v8"
+      - "registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Major }}-arm64v8"
+    build_flag_templates:
+      - --platform=linux/arm64/v8
+      - --label=org.opencontainers.image.title={{ .ProjectName }}
+      - --label=org.opencontainers.image.description={{ .ProjectName }}
+      - --label=org.opencontainers.image.url=https://gitlab.com/djarbz/golang/{{ .ProjectName }}
+      - --label=org.opencontainers.image.source=https://gitlab.com/djarbz/golang/{{ .ProjectName }}
+      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.created={{ time "2006-01-02T15:04:05Z07:00" }}
+      - --label=org.opencontainers.image.revision={{ .FullCommit }}
+      - --label=org.opencontainers.image.licenses=MIT
+
+  # Linux/armv6
+  - use: buildx
+    goos: linux
+    goarch: arm
+    goarm: "6"
+    image_templates:
+      - "registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Version }}-armv6"
+      - "registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}-armv6"
+      - "registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Major }}-armv6"
+    build_flag_templates:
+      - --platform=linux/armv6
+      - --label=org.opencontainers.image.title={{ .ProjectName }}
+      - --label=org.opencontainers.image.description={{ .ProjectName }}
+      - --label=org.opencontainers.image.url=https://gitlab.com/djarbz/golang/{{ .ProjectName }}
+      - --label=org.opencontainers.image.source=https://gitlab.com/djarbz/golang/{{ .ProjectName }}
+      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.created={{ time "2006-01-02T15:04:05Z07:00" }}
+      - --label=org.opencontainers.image.revision={{ .FullCommit }}
+      - --label=org.opencontainers.image.licenses=MIT
+
+  # Linux/armv7
+  - use: buildx
+    goos: linux
+    goarch: arm
+    goarm: "7"
+    image_templates:
+      - "registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Version }}-armv7"
+      - "registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}-armv7"
+      - "registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Major }}-armv7"
+    build_flag_templates:
+      - --platform=linux/armv7
+      - --label=org.opencontainers.image.title={{ .ProjectName }}
+      - --label=org.opencontainers.image.description={{ .ProjectName }}
+      - --label=org.opencontainers.image.url=https://gitlab.com/djarbz/golang/{{ .ProjectName }}
+      - --label=org.opencontainers.image.source=https://gitlab.com/djarbz/golang/{{ .ProjectName }}
+      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.created={{ time "2006-01-02T15:04:05Z07:00" }}
+      - --label=org.opencontainers.image.revision={{ .FullCommit }}
+      - --label=org.opencontainers.image.licenses=MIT
+
+docker_manifests:
+  # https://goreleaser.com/customization/docker_manifest/
+  # Tag
+  - name_template: registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Tag }}
+    image_templates:
+      - registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Tag }}-amd64
+      - registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Tag }}-arm64v8
+      - registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Tag }}-armv6
+      - registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Tag }}-armv7
+
+  # Version
+  - name_template: registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Version }}
+    image_templates:
+      - registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Version }}-amd64
+      - registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Version }}-arm64v8
+      - registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Version }}-armv6
+      - registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Version }}-armv7
+
+  # Major.Minor
+  - name_template: registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}
+    image_templates:
+      - registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}-amd64
+      - registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}-arm64v8
+      - registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}-armv6
+      - registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Major }}.{{ .Minor }}-armv7
+
+  # Major
+  - name_template: registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Major }}
+    image_templates:
+      - registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Major }}-amd64
+      - registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Major }}-arm64v8
+      - registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Major }}-armv6
+      - registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Major }}-armv7
+
+  # Latest
+  - name_template: registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:latest
+    image_templates:
+      - registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Version }}-amd64
+      - registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Version }}-arm64v8
+      - registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Version }}-armv6
+      - registry.gitlab.com/djarbz/golang/{{ .ProjectName }}:{{ .Version }}-armv7
+
+checksum:
+  # https://goreleaser.com/customization/checksum/
+  name_template: "checksums.txt"
+snapshot:
+  # https://goreleaser.com/customization/snapshots/
+  name_template: "{{ incpatch .Version }}-SNAPSHOT"
+source:
+  # https://goreleaser.com/customization/source/
+  enabled: true
+
+nfpms:
+  - maintainer: Austin Arbour <golang@arbour.me>
+    description: Service runner to convert video files per my needs
+    homepage: https://github.com/djarbz/GoMPEG
+    license: MIT
+    formats:
+      - deb
+      - rpm
+#      - apk
