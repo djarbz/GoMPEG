@@ -77,4 +77,6 @@ jobs:
           push: true
           build-args: |
             VARIANT=${{ matrix.variant }}
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FFMPEG_VERSION }}-${{ matrix.variant }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FFMPEG_VERSION }}-${{ matrix.variant }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.variant }}
