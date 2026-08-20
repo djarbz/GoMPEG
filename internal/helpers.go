@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"runtime"
+	"strconv"
 
 	"github.com/djarbz/GoMPEG/config"
 	"github.com/gabriel-vasile/mimetype"
@@ -322,4 +324,20 @@ func execute(appLog *slog.Logger, conf *config.ServerConfig, sourceFile *fileInf
 	_ = cleanDirectory(conf.TempDir)
 
 	return nil
+}
+
+// getOptimalThreadCount calculates a safe thread count based on host/cgroup capacity.
+// It reserves CPU headroom so background operations and system processes are not starved.
+func getOptimalThreadCount() string {
+	cores := runtime.NumCPU()
+
+	// For low-core count systems (<= 4 cores), use 2 threads minimum
+	if cores <= 4 {
+		return "2"
+	}
+
+	// For higher core count systems, allocate 50% of available cores
+	threads := cores / 2
+
+	return strconv.Itoa(threads)
 }

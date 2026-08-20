@@ -17,23 +17,32 @@ func processVideo(log *slog.Logger, conf *config.ServerConfig, sourceFile *fileI
 		reportFile: filepath.Join(conf.TempDir, sourceFile.basename+".ffmpeg.log"),
 	}
 
+	threads := getOptimalThreadCount()
+	log.Info("Calculated dynamic FFmpeg thread target", slog.String("threads", threads))
+
 	args := []string{
 		"-hide_banner",
 		"-nostats",
 		"-y",
 		"-i", sourceFile.path,
+
+		// --- Video: SVT-AV1 Dynamic Throttle ---
 		"-codec:v", "libsvtav1",
 		"-crf", "26",
 		"-preset", "6",
+		"-svtav1-params", fmt.Sprintf("threads=%s", threads), // Dynamic SVT-AV1 thread allocation
 		"-pix_fmt", "yuv420p10le",
+
+		// --- Audio: Universal Stereo AAC ---
 		"-codec:a", "aac",
 		"-ac", "2",
 		"-b:a", "160k",
+
+		// --- Container ---
 		"-movflags", "+faststart",
 		tempFile.path,
 	}
 
-	// Video processing passes 'true' for duplicate hash checking
 	if err := execute(log, conf, sourceFile, tempFile, conf.VideoOutputDir, true, args...); err != nil {
 		return fmt.Errorf("convert video: %w", err)
 	}
