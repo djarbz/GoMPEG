@@ -12,7 +12,6 @@ import (
 	"github.com/djarbz/GoMPEG/cmd/flag"
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
-	"gitlab.com/djarbz/golang/slogmw"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -20,6 +19,7 @@ func levelMatcher(level string) (slog.Level, error) {
 	if levelInt, err := strconv.Atoi(level); err == nil {
 		return slog.Level(levelInt), nil
 	}
+
 	switch strings.ToUpper(level) {
 	case "TRACE":
 		return slog.Level(-8), nil
@@ -36,6 +36,7 @@ func levelMatcher(level string) (slog.Level, error) {
 	case "EMERG":
 		return slog.Level(12), nil
 	}
+
 	return slog.LevelInfo, fmt.Errorf("unknown Log Level: %s", level)
 }
 
@@ -51,22 +52,18 @@ func NewMultiSlogger(cmd *cobra.Command, appName string) (*slog.Logger, error) {
 	addSource, _ := cmd.Flags().GetBool(flag.LogSource)
 	fullSource, _ := cmd.Flags().GetBool(flag.LogFullSource)
 
-	// Auto-detect Journald
+	// Auto-detect non-TTY stdout (e.g. journald/podman container) or flag
 	disableTime, _ := cmd.Flags().GetBool(flag.LogTimestampDisable)
-	if os.Getenv("JOURNAL_STREAM") != "" {
-		disableTime = true
-	}
-	// Auto-detect: If stdout is NOT a terminal, a logging driver (like Podman/journald) is capturing it.
 	if !isatty.IsTerminal(os.Stdout.Fd()) && !isatty.IsCygwinTerminal(os.Stdout.Fd()) {
 		disableTime = true
 	}
 
-	handler := slog.HandlerOptions{
+	opts := &slog.HandlerOptions{
 		AddSource: addSource,
 		Level:     level,
 		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
 			if disableTime && a.Key == slog.TimeKey {
-				return slog.Attr{} // Drop timestamp
+				return slog.Attr{} // Strip timestamp for journald
 			}
 			if !fullSource && a.Key == slog.SourceKey {
 				a.Value = slog.StringValue(filepath.Base(a.Value.String()))
@@ -80,21 +77,21 @@ func NewMultiSlogger(cmd *cobra.Command, appName string) (*slog.Logger, error) {
 		return nil, fmt.Errorf("setup Slog MultiWriter: %w", err)
 	}
 
-	return slog.New(
-    slog.NewJSONHandler(logWriter, &handler).WithAttrs([]slog.Attr{
-        slog.String("name", appName),
-    }),
-), nil
+	format, _ := cmd.Flags().GetString(flag.LogConsoleFormat)
+	var handler slog.Handler
+	if strings.ToUpper(format) == "JSON" {
+		handler = slog.NewJSONHandler(logWriter, opts)
+	} else {
+		handler = slog.NewTextHandler(logWriter, opts)
+	}
+
+	return slog.New(handler.WithAttrs([]slog.Attr{
+		slog.String("name", appName),
+	})), nil
 }
 
 func slogSetupMultiWriter(cmd *cobra.Command) (io.Writer, error) {
-	debug, err := cmd.Flags().GetBool(flag.Debug)
-	if err != nil {
-		return nil, fmt.Errorf(flag.ErrorFormat, flag.Debug, err)
-	}
-	if debug {
-		slogmw.VerboseErrors = true
-	}
+	debug, _ := cmd.Flags().GetBool(flag.Debug)
 
 	var writers []io.Writer
 
@@ -114,14 +111,11 @@ func slogSetupMultiWriter(cmd *cobra.Command) (io.Writer, error) {
 		writers = append(writers, file)
 	}
 
-	if debug {
-		fmt.Printf("Logging with %d writers\n", len(writers))
+	if len(writers) == 0 {
+		return os.Stdout, nil
 	}
 
 	if len(writers) == 1 {
-		if debug {
-			fmt.Printf("Returning a single writer...\n")
-		}
 		return writers[0], nil
 	}
 
@@ -129,154 +123,54 @@ func slogSetupMultiWriter(cmd *cobra.Command) (io.Writer, error) {
 }
 
 func consoleWriter(cmd *cobra.Command, debug bool) (io.Writer, error) {
-	disableConsole, err := cmd.Flags().GetBool(flag.LogConsoleDisable)
-	if err != nil {
-		return nil, fmt.Errorf(flag.ErrorFormat, flag.LogConsoleDisable, err)
-	}
-
+	disableConsole, _ := cmd.Flags().GetBool(flag.LogConsoleDisable)
 	if disableConsole {
-		if debug {
-			fmt.Printf("Console logging disabled\n")
-		}
 		return nil, nil
 	}
-
-	format, err := cmd.Flags().GetString(flag.LogConsoleFormat)
-	if err != nil {
-		return nil, fmt.Errorf(flag.ErrorFormat, flag.LogConsoleFormat, err)
-	}
-
-	if debug {
-		fmt.Printf("Console logging type: %s\n", format)
-	}
-
-	return outputFormatWriter(format, os.Stdout), nil
+	return os.Stdout, nil
 }
 
 func fileWriter(cmd *cobra.Command, debug bool) (io.Writer, error) {
-	enableFile, err := cmd.Flags().GetBool(flag.LogFileEnable)
-	if err != nil {
-		return nil, fmt.Errorf(flag.ErrorFormat, flag.LogFileEnable, err)
-	}
+	enableFile, _ := cmd.Flags().GetBool(flag.LogFileEnable)
 	if !enableFile {
-		if debug {
-			fmt.Printf("File logging disabled\n")
-		}
 		return nil, nil
 	}
 
-	filePath, err := cmd.Flags().GetString(flag.LogFilePath)
-	if err != nil {
-		return nil, fmt.Errorf(flag.ErrorFormat, flag.LogFilePath, err)
-	}
+	filePath, _ := cmd.Flags().GetString(flag.LogFilePath)
 	if filePath == "" {
 		return nil, fmt.Errorf("empty %s not allowed", flag.LogFilePath)
 	}
 
-	format, err := cmd.Flags().GetString(flag.LogFileFormat)
-	if err != nil {
-		return nil, fmt.Errorf(flag.ErrorFormat, flag.LogFileFormat, err)
-	}
-
-	if debug {
-		fmt.Printf("Logging file path: %s\n", filePath)
-		fmt.Printf("File logging type: %s\n", format)
-	}
-
-	rotateEnable, err := cmd.Flags().GetBool(flag.LogFileRotateEnable)
-	if err != nil {
-		return nil, fmt.Errorf(flag.ErrorFormat, flag.LogFileRotateEnable, err)
-	}
+	rotateEnable, _ := cmd.Flags().GetBool(flag.LogFileRotateEnable)
 	if rotateEnable {
-		logFile, err := fileRotator(cmd, debug, filePath, format)
-		if err != nil {
-			return nil, fmt.Errorf("setup log rotation: %w", err)
-		}
-		if logFile != nil {
-			return logFile, nil
-		}
+		return fileRotator(cmd, filePath)
 	}
 
-	logFile, err := fileStatic(debug, filePath, format)
-	if err != nil {
-		return nil, fmt.Errorf("setup static log: %w", err)
-	}
-	if logFile != nil {
-		return logFile, nil
-	}
-
-	return nil, fmt.Errorf("unreachable code")
+	return fileStatic(filePath)
 }
 
-func fileRotator(cmd *cobra.Command, debug bool, filePath string, format string) (io.Writer, error) {
-	size, err := cmd.Flags().GetInt(flag.LogFileRotateSize)
-	if err != nil {
-		return nil, fmt.Errorf(flag.ErrorFormat, flag.LogFileRotateSize, err)
-	}
+func fileRotator(cmd *cobra.Command, filePath string) (io.Writer, error) {
+	size, _ := cmd.Flags().GetInt(flag.LogFileRotateSize)
+	keep, _ := cmd.Flags().GetInt(flag.LogFileRotateKeep)
+	age, _ := cmd.Flags().GetInt(flag.LogFileRotateAge)
 
-	keep, err := cmd.Flags().GetInt(flag.LogFileRotateKeep)
-	if err != nil {
-		return nil, fmt.Errorf(flag.ErrorFormat, flag.LogFileRotateKeep, err)
-	}
-
-	age, err := cmd.Flags().GetInt(flag.LogFileRotateAge)
-	if err != nil {
-		return nil, fmt.Errorf(flag.ErrorFormat, flag.LogFileRotateAge, err)
-	}
-
-	rotator := &lumberjack.Logger{
+	return &lumberjack.Logger{
 		Filename:   filePath,
-		MaxSize:    size, // megabytes
-		MaxBackups: keep, // files
-		MaxAge:     age,  // days
-	}
-
-	if debug {
-		fmt.Printf("Rotate Log file enabled\n")
-		fmt.Printf("Rotate Log file %dMB\n", size)
-		fmt.Printf("Rotate Log file keep %d files\n", keep)
-		fmt.Printf("Rotate Log file %d days\n", age)
-	}
-
-	return outputFormatWriter(format, rotator), nil
+		MaxSize:    size,
+		MaxBackups: keep,
+		MaxAge:     age,
+	}, nil
 }
 
-func fileStatic(debug bool, filePath string, format string) (io.Writer, error) {
+func fileStatic(filePath string) (io.Writer, error) {
 	logFile, err := os.OpenFile(
 		filePath,
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
-		0o644, //nolint:gomnd
+		0o644,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("open log file [%s] Error: %w", filePath, err)
+		return nil, fmt.Errorf("open log file [%s]: %w", filePath, err)
 	}
 
-	if err := logFile.Sync(); err != nil {
-		return nil, fmt.Errorf("sync log file [%s] Error: %w", filePath, err)
-	}
-
-	if debug {
-		fmt.Printf("Standard Log: %s\n", logFile.Name())
-	}
-
-	return outputFormatWriter(format, logFile), nil
-}
-
-const (
-	FormatText = "TEXT"
-	FormatJSON = "JSON"
-)
-
-func outputFormatWriter(format string, writer io.Writer) io.Writer {
-	switch format {
-	case FormatJSON:
-		// log.Println("Utilizing JSON")
-		return slogmw.NewJSON(writer)
-	case FormatText:
-		// log.Println("Utilizing LOGFMT")
-		return slogmw.NewLOGFMT(writer)
-	default:
-		// log.Println("Defaulting to LOGFMT")
-		return slogmw.NewLOGFMT(writer)
-	}
+	return logFile, nil
 }
