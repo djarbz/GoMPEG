@@ -57,6 +57,12 @@ jobs:
         run: |
           echo "IMAGE_NAME=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
 
+      # Parse FFMPEG_VERSION directly from the Dockerfile
+      - name: Extract FFmpeg Version from Dockerfile
+        run: |
+          VERSION=$(grep -E '^ARG FFMPEG_VERSION=' Dockerfile | cut -d'=' -f2)
+          echo "FFMPEG_VERSION=${VERSION}" >> $GITHUB_ENV
+
       - name: Log in to the Container registry
         uses: docker/login-action@v3
         with:
@@ -71,4 +77,4 @@ jobs:
           push: true
           build-args: |
             VARIANT=${{ matrix.variant }}
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ffmpeg-${{ matrix.variant }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FFMPEG_VERSION }}-${{ matrix.variant }}
