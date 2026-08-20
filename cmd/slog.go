@@ -122,12 +122,23 @@ func slogSetupMultiWriter(cmd *cobra.Command) (io.Writer, error) {
 	return io.MultiWriter(writers...), nil
 }
 
+type lineFlushWriter struct {
+	w *os.File
+}
+
+func (l *lineFlushWriter) Write(p []byte) (n int, err error) {
+	n, err = l.w.Write(p)
+	_ = l.w.Sync() // Force immediate flush to OS/journald
+	return n, err
+}
+
 func consoleWriter(cmd *cobra.Command, debug bool) (io.Writer, error) {
 	disableConsole, _ := cmd.Flags().GetBool(flag.LogConsoleDisable)
 	if disableConsole {
 		return nil, nil
 	}
-	return os.Stdout, nil
+	// Return the unbuffered flusher over stdout
+	return &lineFlushWriter{w: os.Stdout}, nil
 }
 
 func fileWriter(cmd *cobra.Command, debug bool) (io.Writer, error) {
