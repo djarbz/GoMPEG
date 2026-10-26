@@ -4,7 +4,7 @@ go 1.27
 
 require (
 	github.com/fsnotify/fsnotify v1.9.0
-	github.com/gabriel-vasile/mimetype v1.4.2
+	github.com/gabriel-vasile/mimetype v1.4.16
 	github.com/joho/godotenv v1.5.1
 	github.com/mattn/go-isatty v0.0.24
 	github.com/spf13/cobra v1.10.2
@@ -28,7 +28,6 @@ require (
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.38.0 // indirect
 	modernc.org/libc v1.74.4 // indirect
